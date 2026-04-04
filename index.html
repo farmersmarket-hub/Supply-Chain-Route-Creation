@@ -24,7 +24,7 @@
       height: 85vh;
       overflow-y: auto;
     }
-    label { font-weight: bold; color: #333; display: block; margin-bottom: 4px; }
+    label { font-weight: bold; color: #333; }
     .toggle-switch { position: relative; width: 56px; height: 28px; display: inline-block; vertical-align: middle; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider { position: absolute; cursor: pointer; top:0;left:0;right:0;bottom:0; background-color: #10b981; border-radius: 28px; transition: 0.3s; }
@@ -46,10 +46,11 @@
       </a>
     </div>
     <h2 class="text-2xl font-bold text-center mb-2 text-gray-900">Supply Chain Route Creation</h2>
-    <p class="text-center italic text-sm text-gray-700 mb-6">Complete this form to create or amend a supply chain pickup route. </p>
+    <p class="text-center italic text-sm text-gray-700 mb-6">Complete this form to create or amend a supply chain pickup route.</p>
 
-    <form id="routeCreationForm" class="space-y-4" onsubmit="submitRouteForm(event)">
+    <form id="routeCreationForm" class="space-y-4" onsubmit="submitForm(event)">
 
+      <!-- 1. Toggle switch - new creation or amendment -->
       <div>
         <label>Route Mode <span class="text-red-500">*</span></label>
         <div class="flex items-center gap-3 mt-1">
@@ -60,42 +61,55 @@
         <p class="text-xs text-gray-500 mt-1" id="modeLabel">Creating a new route</p>
       </div>
 
+      <!-- Amendment: Route ID lookup (hidden by default) -->
       <div id="amendmentSection" class="hidden">
         <label>Route ID to Amend <span class="text-red-500">*</span></label>
         <div class="flex gap-2">
           <input type="text" id="amendRouteId" class="flex-1 p-2 border rounded bg-white" placeholder="Enter existing Route ID">
           <button type="button" onclick="retrieveRoute()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded font-semibold text-sm">Retrieve</button>
         </div>
-        <div id="amendSpinner" class="hidden mt-2">
-          <svg class="animate-spin h-5 w-5 text-amber-500 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-          <span class="text-sm text-gray-600 ml-1">Retrieving route data...</span>
-        </div>
       </div>
 
+      <!-- 2. Business registry visibility -->
       <div>
         <label>Do you want your business/organization to be visible within the regional vendor business registry within this app?</label>
         <select id="businessVisible" name="businessVisible" class="w-full p-2 border rounded bg-white">
-          <option value="No">No</option><option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
         </select>
       </div>
 
+      <!-- 3. Manager visibility -->
       <div>
-        <label>Do you want your business/organization vendor status as a manager to be visible within the regional vendor business registry within this app?</label>
+        <label>Do you want your business/organization vendor status as a <span class="underline">manager</span> to be visible within the regional vendor business registry within this app?</label>
         <select id="managerVisible" name="managerVisible" class="w-full p-2 border rounded bg-white">
-          <option value="No">No</option><option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
         </select>
       </div>
 
+      <!-- 4. Route Name (autogenerate Route ID) -->
       <div>
-        <label>Route Name <span class="text-red-500">*</span></label>
+        <label>Route Name <span class="text-red-500">*</span>
+          <span class="text-sm font-normal text-gray-500 block">(Route ID will be auto-generated)</span>
+        </label>
         <input type="text" id="routeName" name="routeName" class="w-full p-2 border rounded bg-white" placeholder="e.g., Thursday NE Portland Route" required>
       </div>
 
       <div>
         <label>Route ID</label>
-        <input type="text" id="routeId" name="routeId" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-generated on submit">
+        <input type="text" id="routeId" name="routeId" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-generated">
       </div>
 
+      <!-- 5. Date of pick-up (autopopulate) -->
+      <div>
+        <label>Date of Pick-up
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated)</span>
+        </label>
+        <input type="date" id="pickupDate" name="pickupDate" class="w-full p-2 border rounded bg-white" readonly>
+      </div>
+
+      <!-- 6. (From start date to end date) Total number of route runs (autopopulate) -->
       <div>
         <label>Start Date <span class="text-red-500">*</span></label>
         <input type="date" id="startDate" name="startDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
@@ -107,59 +121,48 @@
       </div>
 
       <div>
-        <label>Route Frequency <span class="text-red-500">*</span></label>
-        <select id="routeFrequency" name="routeFrequency" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
-          <option value="">- Select -</option><option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly">Monthly</option>
-        </select>
+        <label>Total Number of Route Runs
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from start date to end date)</span>
+        </label>
+        <input type="number" id="totalRouteRuns" name="totalRouteRuns" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-calculated">
       </div>
 
+      <!-- 7. Route creation or amendment date -->
       <div>
-        <label>Pickup Day <span class="text-red-500">*</span></label>
-        <select id="pickupDay" name="pickupDay" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
-          <option value="">- Select -</option><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-        </select>
-      </div>
-
-      <div>
-        <label>Total Number of Route Runs</label>
-        <input type="number" id="totalRouteRuns" name="totalRouteRuns" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-calculated from dates and frequency">
-      </div>
-
-      <div>
-        <label>Route Creation / Amendment Date</label>
+        <label>Route Creation or Amendment Date</label>
         <input type="date" id="creationDate" name="creationDate" class="w-full p-2 border rounded bg-white" readonly>
-      </div>
-
-      <div>
-        <label>Delivery Destination</label>
-        <input type="text" id="deliveryDestination" name="deliveryDestination" class="w-full p-2 border rounded bg-white" placeholder="e.g., REACH Community Farmers Market, Portland, OR">
       </div>
 
       <hr class="border-gray-300">
 
+      <!-- Vendors Section -->
       <div>
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-bold text-gray-800">Vendors on Route</h3>
           <button type="button" onclick="addVendorCard()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-1.5 rounded-full font-semibold">+ Add Vendor</button>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Drag <span class="drag-handle">⠿</span> to reorder vendor pickup sequence. Vendors must already be registered.</p>
+        <p class="text-xs text-gray-500 mt-1">Drag <span class="drag-handle">⠿</span> to reorder vendor pickup sequence.</p>
       </div>
 
       <div id="vendorContainer"></div>
 
+      <hr class="border-gray-300">
+
+      <!-- Route Creation and Amendment section -->
+      <h3 class="text-lg font-bold text-gray-800">Route Creation and Amendment</h3>
+
+      <!-- Route Name (text field) -->
       <div>
-        <label>Route Grand Total (all vendors, all items)</label>
-        <input type="text" id="routeGrandTotal" class="w-full p-2 border rounded bg-white font-bold" readonly value="$0.00">
+        <label>Route Name (text field)</label>
+        <input type="text" id="routeNameAmend" name="routeNameAmend" class="w-full p-2 border rounded bg-white" placeholder="Enter or update route name">
       </div>
 
+      <!-- Order of vendors (AI generated?) -->
       <div>
-        <label>Total Vendors on Route</label>
-        <input type="number" id="totalVendorCount" class="w-full p-2 border rounded bg-white" readonly value="0">
-      </div>
-
-      <div>
-        <label>Notes / Comments</label>
-        <textarea id="routeNotes" name="routeNotes" class="w-full p-2 border rounded bg-white" rows="3" placeholder="Any additional notes about this route..."></textarea>
+        <label>Order of Vendors
+          <span class="text-sm font-normal text-gray-500 block">(?)</span>
+        </label>
+        <textarea id="vendorOrder" name="vendorOrder" class="w-full p-2 border rounded bg-white" rows="3" readonly placeholder="Auto-generated vendor pickup order will appear here"></textarea>
       </div>
 
       <div class="text-center">
@@ -171,133 +174,265 @@
 
   <script>
     let vendorCounter = 0, draggedCard = null;
+
     const produceCategories = {
       "Vegetables": ["African eggplants","Beans","Beets","Bell Pepper","Black Eyed Peas","Broccoli","Carrots","Cauliflower","Celery","Chilies","Cilantro","Collard Greens","Corn","Cucumbers","Garlic","Green Beans","Kale","Lettuce","Mchicha (African Spinach)","Nightshade","Onions","Peas","Potatoes","Pumpkin and Leaves","Radish","Sweet Potato Leaves","Swiss Chards","Tomatillo","Tomatoes","Zucchini","Other"],
       "Fruits": ["Blueberries","Strawberry","Other"],
       "Grains": ["African Maize","Other"],
       "Other": ["Other"]
     };
-    document.getElementById('creationDate').value = new Date().toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});
 
-    function toggleMode(){
-      const a=document.getElementById('modeToggle').checked;
-      document.getElementById('amendmentSection').classList.toggle('hidden',!a);
-      document.getElementById('modeLabel').textContent=a?'Amending an existing route':'Creating a new route';
+    // Init
+    document.getElementById('creationDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+    document.getElementById('pickupDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+
+    function toggleMode() {
+      const a = document.getElementById('modeToggle').checked;
+      document.getElementById('amendmentSection').classList.toggle('hidden', !a);
+      document.getElementById('modeLabel').textContent = a ? 'Amending an existing route' : 'Creating a new route';
     }
-    function retrieveRoute(){
-      const id=document.getElementById('amendRouteId').value.trim();
-      if(!id){alert('Please enter a Route ID.');return;}
-      document.getElementById('amendSpinner').classList.remove('hidden');
-      setTimeout(()=>{document.getElementById('amendSpinner').classList.add('hidden');document.getElementById('routeId').value=id;alert('Route retrieval will connect to your backend. Route ID set.');},1200);
+
+    function retrieveRoute() {
+      const id = document.getElementById('amendRouteId').value.trim();
+      if (!id) { alert('Please enter a Route ID.'); return; }
+      document.getElementById('routeId').value = id;
+      alert('Route retrieval will connect to your backend. Route ID set.');
     }
-    function calculateRouteRuns(){
-      const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value,f=document.getElementById('routeFrequency').value,d=document.getElementById('pickupDay').value;
-      if(!s||!e||!f||d==='')return;
-      const sd=new Date(s+'T00:00:00'),ed=new Date(e+'T00:00:00'),pd=parseInt(d);
-      if(ed<=sd){document.getElementById('totalRouteRuns').value=0;return;}
-      let c=0,cur=new Date(sd);
-      while(cur.getDay()!==pd)cur.setDate(cur.getDate()+1);
-      const inc=f==='weekly'?7:f==='biweekly'?14:28;
-      while(cur<=ed){c++;cur.setDate(cur.getDate()+inc);}
-      document.getElementById('totalRouteRuns').value=c;
-      if(!document.getElementById('modeToggle').checked&&!document.getElementById('routeId').value)document.getElementById('routeId').value='RT-'+Date.now().toString(36).toUpperCase();
+
+    function calculateRouteRuns() {
+      const s = document.getElementById('startDate').value;
+      const e = document.getElementById('endDate').value;
+      if (!s || !e) return;
+      const sd = new Date(s + 'T00:00:00'), ed = new Date(e + 'T00:00:00');
+      if (ed <= sd) { document.getElementById('totalRouteRuns').value = 0; return; }
+      const diffDays = Math.floor((ed - sd) / (1000 * 60 * 60 * 24));
+      const weeks = Math.floor(diffDays / 7);
+      document.getElementById('totalRouteRuns').value = weeks > 0 ? weeks : 1;
+      if (!document.getElementById('modeToggle').checked && !document.getElementById('routeId').value) {
+        document.getElementById('routeId').value = 'RT-' + Date.now().toString(36).toUpperCase();
+      }
       recalcAllGrandTotals();
     }
 
-    function addVendorCard(){
-      vendorCounter++;const idx=vendorCounter,container=document.getElementById('vendorContainer'),card=document.createElement('div');
-      card.className='vendor-card';card.id=`vendor-card-${idx}`;card.draggable=true;card.dataset.vendorIdx=idx;
-      card.innerHTML=`
-        <div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><span class="drag-handle" title="Drag to reorder">⠿</span><span class="font-bold text-gray-700">Stop #<span class="stop-number">${container.children.length+1}</span></span></div><button type="button" onclick="removeVendorCard(${idx})" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button></div>
+    function addVendorCard() {
+      vendorCounter++;
+      const idx = vendorCounter;
+      const container = document.getElementById('vendorContainer');
+      const card = document.createElement('div');
+      card.className = 'vendor-card';
+      card.id = `vendor-card-${idx}`;
+      card.draggable = true;
+      card.dataset.vendorIdx = idx;
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
+            <span class="font-bold text-gray-700">Stop #<span class="stop-number">${container.children.length + 1}</span></span>
+          </div>
+          <button type="button" onclick="removeVendorCard(${idx})" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+        </div>
         <div class="space-y-3">
-          <div><label class="text-sm">Vendor PIN <span class="text-red-500">*</span></label><input type="text" id="vPin-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Enter Vendor PIN" onchange="lookupVendor(${idx})"></div>
-          <div><label class="text-sm">Vendor ID</label><div class="relative"><input type="text" id="vId-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly><div id="vSpinner-${idx}" class="absolute right-3 top-2.5 hidden"><svg class="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg></div></div></div>
-          <div><label class="text-sm">Vendor Business Name</label><input type="text" id="vName-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly></div>
-          <div><label class="text-sm">Pickup Address</label><input type="text" id="vAddr-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly></div>
-          <div><label class="text-sm">Order # of Pick-up</label><input type="number" id="vOrder-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly></div>
-          <div class="flex items-center justify-between mt-2"><label class="text-sm mb-0">Crops Assigned for Pickup</label><button type="button" onclick="addCropRow(${idx})" class="bg-green-100 hover:bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full font-semibold">+ Add Produce Item</button></div>
+
+          <!-- Vendor Name (autoretrieve Vendor ID and address) -->
+          <div>
+            <label class="text-sm">Vendor Name <span class="text-red-500">*</span>
+              <span class="text-xs font-normal text-gray-500 block">(Auto-retrieves Vendor ID and address)</span>
+            </label>
+            <input type="text" id="vName-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Enter Vendor Name" onchange="lookupVendor(${idx})">
+          </div>
+
+          <div>
+            <label class="text-sm">Vendor ID</label>
+            <input type="text" id="vId-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly>
+          </div>
+
+          <div>
+            <label class="text-sm">Address
+              <span class="text-xs font-normal text-gray-500 block">(Auto-retrieved — optional manual overwrite)</span>
+            </label>
+            <input type="text" id="vAddr-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Auto-populated or manually enter">
+          </div>
+
+          <!-- Order # of pick-up -->
+          <div>
+            <label class="text-sm">Order # of Pick-up</label>
+            <input type="number" id="vOrder-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly>
+          </div>
+
+          <!-- Crops Section -->
+          <div class="flex items-center justify-between mt-2">
+            <label class="text-sm mb-0">Crops assigned for pick up for each vendor</label>
+            <button type="button" onclick="addCropRow(${idx})" class="bg-green-100 hover:bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full font-semibold">+ Add Item</button>
+          </div>
           <div id="cropContainer-${idx}"></div>
-          <div class="pt-2 border-t border-gray-200"><label class="text-sm">Vendor Subtotal (Grand Total all items)</label><input type="text" id="vSubtotal-${idx}" class="w-full p-2 border rounded bg-white text-sm font-bold" readonly value="$0.00"></div>
-        </div>`;
-      container.appendChild(card);updateStopNumbers();updateVendorCount();initDragAndDrop();addCropRow(idx);
+
+        </div>
+      `;
+
+      container.appendChild(card);
+      updateStopNumbers();
+      updateVendorOrder();
+      initDragAndDrop();
+      addCropRow(idx);
     }
 
-    function removeVendorCard(idx){const c=document.getElementById(`vendor-card-${idx}`);if(c)c.remove();updateStopNumbers();updateVendorCount();recalcRouteGrandTotal();}
-
-    function lookupVendor(idx){
-      const pin=document.getElementById(`vPin-${idx}`).value.trim();if(!pin)return;
-      const spinner=document.getElementById(`vSpinner-${idx}`);spinner.classList.remove('hidden');
-      fetch(`https://script.google.com/macros/s/AKfycbwhqi3XQNKxZKMFDDmz2EVSj6A9ovQ6_ysscpoV9ZFBkEAq6lJw5JeEyof4wza-zxo5FA/exec?individualid=${encodeURIComponent(pin)}`)
-        .then(r=>r.json()).then(data=>{
-          if(data&&data.vendorId){document.getElementById(`vId-${idx}`).value=data.vendorId||'';document.getElementById(`vName-${idx}`).value=data.vendorName||'';document.getElementById(`vAddr-${idx}`).value=data.vendorAddress||'';}
-          else{alert('Vendor PIN not found.');document.getElementById(`vId-${idx}`).value='';document.getElementById(`vName-${idx}`).value='';document.getElementById(`vAddr-${idx}`).value='';}
-        }).catch(e=>console.error(e)).finally(()=>spinner.classList.add('hidden'));
+    function removeVendorCard(idx) {
+      const c = document.getElementById(`vendor-card-${idx}`);
+      if (c) c.remove();
+      updateStopNumbers();
+      updateVendorOrder();
     }
 
-    function addCropRow(vendorIdx){
-      const container=document.getElementById(`cropContainer-${vendorIdx}`),num=container.children.length+1,uid=`${vendorIdx}-${num}-${Date.now()}`;
-      const row=document.createElement('div');row.className='crop-card';row.id=`crop-${uid}`;
-      row.innerHTML=`
-        <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-green-700">Item #${num}</span><button type="button" onclick="this.closest('.crop-card').remove();recalcVendorSubtotal(${vendorIdx});" class="text-red-400 hover:text-red-600 text-sm">✕</button></div>
+    function lookupVendor(idx) {
+      // Placeholder: will connect to backend to autoretrieve Vendor ID and address
+      // For now fields are manually fillable
+    }
+
+    function addCropRow(vendorIdx) {
+      const container = document.getElementById(`cropContainer-${vendorIdx}`);
+      const num = container.children.length + 1;
+      const row = document.createElement('div');
+      row.className = 'crop-card';
+      row.id = `crop-${vendorIdx}-${num}-${Date.now()}`;
+
+      row.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold text-green-700">Item #${num}</span>
+          <button type="button" onclick="this.closest('.crop-card').remove(); recalcAllGrandTotals();" class="text-red-400 hover:text-red-600 text-sm">✕</button>
+        </div>
         <div class="space-y-2">
-          <div><label class="text-xs font-semibold">Produce Category <span class="text-red-500">*</span></label><select class="w-full p-1.5 border rounded bg-white text-sm crop-category" onchange="populateProduceItems(this)"><option value="">- Select Category -</option>${Object.keys(produceCategories).map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
-          <div><label class="text-xs font-semibold">Produce Item <span class="text-red-500">*</span></label><select class="w-full p-1.5 border rounded bg-white text-sm crop-item"><option value="">- Select Item -</option></select></div>
-          <div><label class="text-xs font-semibold">Specify / Description (optional)</label><input type="text" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="e.g., cherry tomatoes, organic"></div>
-          <div><label class="text-xs font-semibold">Total Quantity (lbs)</label><input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-lbs" placeholder="0" oninput="recalcCropGrandTotal(this,${vendorIdx})"></div>
-          <div><label class="text-xs font-semibold">Total Quantity (boxes)</label><input type="number" step="1" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-boxes" placeholder="0"></div>
-          <div><label class="text-xs font-semibold">Expected Total Quantity per Load per Item</label><input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load" placeholder="0" oninput="recalcCropGrandTotal(this,${vendorIdx})"></div>
-          <div><label class="text-xs font-semibold">Wholesale Unit Price ($)<span class="text-xs font-normal text-gray-500 block">(Auto-populate from Upcoming Market form OR manual input here)</span></label><input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-unit-price" placeholder="0.00" oninput="recalcCropGrandTotal(this,${vendorIdx})"></div>
-          <div><label class="text-xs font-semibold">Grand Total Price per Item<span class="text-xs font-normal text-gray-500 block">(Unit Price × Qty per Load × Total Route Runs)</span></label><input type="text" class="w-full p-1.5 border rounded bg-white text-sm font-bold crop-grand-total" readonly value="$0.00"></div>
-        </div>`;
+
+          <!-- Produce Category -->
+          <div>
+            <label class="text-xs font-semibold">Produce Category</label>
+            <select class="w-full p-1.5 border rounded bg-white text-sm crop-category" onchange="populateItems(this)">
+              <option value="">- Select Category -</option>
+              ${Object.keys(produceCategories).map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+
+          <!-- Produce Item -->
+          <div>
+            <label class="text-xs font-semibold">Produce Item</label>
+            <select class="w-full p-1.5 border rounded bg-white text-sm crop-item">
+              <option value="">- Select Item -</option>
+            </select>
+          </div>
+
+          <!-- Optional text field -->
+          <div>
+            <label class="text-xs font-semibold">Specify / Description (optional)</label>
+            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="e.g., cherry tomatoes, organic">
+          </div>
+
+          <!-- Total quantity of each item (pounds and/or boxes) -->
+          <div>
+            <label class="text-xs font-semibold">Total Quantity of Each Item (lbs)</label>
+            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-lbs" placeholder="0">
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold">Total Quantity of Each Item (boxes)</label>
+            <input type="number" step="1" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-boxes" placeholder="0">
+          </div>
+
+          <!-- Expected total quantity per load per item -->
+          <div>
+            <label class="text-xs font-semibold">Expected Total Quantity per Load per Item</label>
+            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load" placeholder="0" oninput="recalcGrandTotal(this)">
+          </div>
+
+          <!-- Wholesale Unit Price -->
+          <div>
+            <label class="text-xs font-semibold">Wholesale Unit Price ($)
+              <span class="text-xs font-normal text-gray-500 block">(Auto-populate from Upcoming Market form OR manual input here)</span>
+            </label>
+            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-unit-price" placeholder="0.00" oninput="recalcGrandTotal(this)">
+          </div>
+
+          <!-- Grand Total Price per Item (autopopulate) -->
+          <div>
+            <label class="text-xs font-semibold">Grand Total Price per Item
+              <span class="text-xs font-normal text-gray-500 block">(Auto-populated: Unit Price × Qty per Load × Total Route Runs)</span>
+            </label>
+            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm font-bold crop-grand-total" readonly value="$0.00">
+          </div>
+
+        </div>
+      `;
       container.appendChild(row);
     }
 
-    function populateProduceItems(sel){
-      const cat=sel.value,items=sel.closest('.crop-card').querySelector('.crop-item');
-      items.innerHTML='<option value="">- Select Item -</option>';
-      if(produceCategories[cat])produceCategories[cat].forEach(i=>{const o=document.createElement('option');o.value=i;o.textContent=i;items.appendChild(o);});
+    function populateItems(sel) {
+      const cat = sel.value;
+      const items = sel.closest('.crop-card').querySelector('.crop-item');
+      items.innerHTML = '<option value="">- Select Item -</option>';
+      if (produceCategories[cat]) produceCategories[cat].forEach(i => { const o = document.createElement('option'); o.value = i; o.textContent = i; items.appendChild(o); });
     }
 
-    function recalcCropGrandTotal(el,vendorIdx){
-      const card=el.closest('.crop-card'),pl=parseFloat(card.querySelector('.crop-per-load').value)||0,up=parseFloat(card.querySelector('.crop-unit-price').value)||0,tr=parseInt(document.getElementById('totalRouteRuns').value)||0;
-      card.querySelector('.crop-grand-total').value=`$${(up*pl*tr).toFixed(2)}`;recalcVendorSubtotal(vendorIdx);
+    function recalcGrandTotal(el) {
+      const card = el.closest('.crop-card');
+      const pl = parseFloat(card.querySelector('.crop-per-load').value) || 0;
+      const up = parseFloat(card.querySelector('.crop-unit-price').value) || 0;
+      const tr = parseInt(document.getElementById('totalRouteRuns').value) || 0;
+      card.querySelector('.crop-grand-total').value = `$${(up * pl * tr).toFixed(2)}`;
     }
-    function recalcVendorSubtotal(vendorIdx){
-      const c=document.getElementById(`cropContainer-${vendorIdx}`);if(!c)return;let t=0;
-      c.querySelectorAll('.crop-grand-total').forEach(i=>{t+=parseDollar(i.value);});
-      const el=document.getElementById(`vSubtotal-${vendorIdx}`);if(el)el.value=`$${t.toFixed(2)}`;recalcRouteGrandTotal();
-    }
-    function recalcRouteGrandTotal(){let t=0;document.querySelectorAll('[id^="vSubtotal-"]').forEach(el=>{t+=parseDollar(el.value);});document.getElementById('routeGrandTotal').value=`$${t.toFixed(2)}`;}
-    function recalcAllGrandTotals(){
-      document.querySelectorAll('.crop-card').forEach(card=>{const pl=parseFloat(card.querySelector('.crop-per-load')?.value)||0,up=parseFloat(card.querySelector('.crop-unit-price')?.value)||0,tr=parseInt(document.getElementById('totalRouteRuns').value)||0;const gt=card.querySelector('.crop-grand-total');if(gt)gt.value=`$${(up*pl*tr).toFixed(2)}`;});
-      document.querySelectorAll('[id^="cropContainer-"]').forEach(c=>{recalcVendorSubtotal(parseInt(c.id.split('-')[1]));});
-    }
-    function parseDollar(v){if(!v)return 0;const n=v.replace(/[^\d.-]/g,'');return isNaN(parseFloat(n))?0:parseFloat(n);}
-    function updateStopNumbers(){document.querySelectorAll('#vendorContainer .vendor-card').forEach((c,i)=>{c.querySelector('.stop-number').textContent=i+1;const o=c.querySelector('[id^="vOrder-"]');if(o)o.value=i+1;});}
-    function updateVendorCount(){document.getElementById('totalVendorCount').value=document.querySelectorAll('#vendorContainer .vendor-card').length;}
 
-    function initDragAndDrop(){
-      document.querySelectorAll('#vendorContainer .vendor-card').forEach(card=>{
-        card.ondragstart=function(e){draggedCard=this;this.classList.add('dragging');e.dataTransfer.effectAllowed='move';};
-        card.ondragend=function(){this.classList.remove('dragging');draggedCard=null;updateStopNumbers();};
-        card.ondragover=function(e){e.preventDefault();e.dataTransfer.dropEffect='move';};
-        card.ondrop=function(e){e.preventDefault();if(draggedCard&&draggedCard!==this){const c=document.getElementById('vendorContainer'),a=[...c.querySelectorAll('.vendor-card')];a.indexOf(draggedCard)<a.indexOf(this)?this.parentNode.insertBefore(draggedCard,this.nextSibling):this.parentNode.insertBefore(draggedCard,this);updateStopNumbers();}};
+    function recalcAllGrandTotals() {
+      document.querySelectorAll('.crop-card').forEach(card => {
+        const pl = parseFloat(card.querySelector('.crop-per-load')?.value) || 0;
+        const up = parseFloat(card.querySelector('.crop-unit-price')?.value) || 0;
+        const tr = parseInt(document.getElementById('totalRouteRuns').value) || 0;
+        const gt = card.querySelector('.crop-grand-total');
+        if (gt) gt.value = `$${(up * pl * tr).toFixed(2)}`;
       });
     }
 
-    async function submitRouteForm(e){
+    function updateStopNumbers() {
+      document.querySelectorAll('#vendorContainer .vendor-card').forEach((c, i) => {
+        c.querySelector('.stop-number').textContent = i + 1;
+        const o = c.querySelector('[id^="vOrder-"]');
+        if (o) o.value = i + 1;
+      });
+    }
+
+    function updateVendorOrder() {
+      const names = [];
+      document.querySelectorAll('#vendorContainer .vendor-card').forEach((c, i) => {
+        const idx = c.dataset.vendorIdx;
+        const name = document.getElementById(`vName-${idx}`)?.value || `Vendor ${i + 1}`;
+        names.push(`${i + 1}. ${name}`);
+      });
+      document.getElementById('vendorOrder').value = names.join('\n');
+    }
+
+    function initDragAndDrop() {
+      document.querySelectorAll('#vendorContainer .vendor-card').forEach(card => {
+        card.ondragstart = function(e) { draggedCard = this; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+        card.ondragend = function() { this.classList.remove('dragging'); draggedCard = null; updateStopNumbers(); updateVendorOrder(); };
+        card.ondragover = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+        card.ondrop = function(e) {
+          e.preventDefault();
+          if (draggedCard && draggedCard !== this) {
+            const c = document.getElementById('vendorContainer'), a = [...c.querySelectorAll('.vendor-card')];
+            a.indexOf(draggedCard) < a.indexOf(this) ? this.parentNode.insertBefore(draggedCard, this.nextSibling) : this.parentNode.insertBefore(draggedCard, this);
+            updateStopNumbers(); updateVendorOrder();
+          }
+        };
+      });
+    }
+
+    function submitForm(e) {
       e.preventDefault();
-      if(!document.querySelectorAll('#vendorContainer .vendor-card').length){alert('Please add at least one vendor.');return;}
-      if(!document.getElementById('routeName').value.trim()){alert('Please enter a Route Name.');return;}
-      if(!document.getElementById('routeId').value)document.getElementById('routeId').value='RT-'+Date.now().toString(36).toUpperCase();
-      document.querySelector('.submit-btn').style.display='none';
-      const routeData={mode:document.getElementById('modeToggle').checked?'Amendment':'New',routeId:document.getElementById('routeId').value,routeName:document.getElementById('routeName').value,startDate:document.getElementById('startDate').value,endDate:document.getElementById('endDate').value,routeFrequency:document.getElementById('routeFrequency').value,pickupDay:document.getElementById('pickupDay').selectedOptions[0]?.text||'',totalRouteRuns:document.getElementById('totalRouteRuns').value,deliveryDestination:document.getElementById('deliveryDestination').value,businessVisible:document.getElementById('businessVisible').value,managerVisible:document.getElementById('managerVisible').value,creationDate:document.getElementById('creationDate').value,routeGrandTotal:document.getElementById('routeGrandTotal').value,notes:document.getElementById('routeNotes').value,vendors:[]};
-      document.querySelectorAll('#vendorContainer .vendor-card').forEach((card,i)=>{const idx=card.dataset.vendorIdx;const v={stopNumber:i+1,vendorPin:document.getElementById(`vPin-${idx}`)?.value||'',vendorId:document.getElementById(`vId-${idx}`)?.value||'',vendorName:document.getElementById(`vName-${idx}`)?.value||'',pickupAddress:document.getElementById(`vAddr-${idx}`)?.value||'',subtotal:document.getElementById(`vSubtotal-${idx}`)?.value||'$0.00',crops:[]};
-        card.querySelectorAll('.crop-card').forEach(crop=>{v.crops.push({category:crop.querySelector('.crop-category')?.value||'',item:crop.querySelector('.crop-item')?.value||'',description:crop.querySelector('input[type="text"]')?.value||'',qtyLbs:crop.querySelector('.crop-qty-lbs')?.value||'0',qtyBoxes:crop.querySelector('.crop-qty-boxes')?.value||'0',expectedPerLoad:crop.querySelector('.crop-per-load')?.value||'0',wholesaleUnitPrice:crop.querySelector('.crop-unit-price')?.value||'0',grandTotalPrice:crop.querySelector('.crop-grand-total')?.value||'$0.00'});});
-        routeData.vendors.push(v);});
-      const sm=document.getElementById('successMessage');sm.innerText='⌛ Submitting route... Please wait.';sm.style.display='block';sm.style.background='';
-      try{console.log('Route Data:',JSON.stringify(routeData,null,2));sm.innerText=`✅ Route "${routeData.routeName}" (${routeData.routeId}) submitted successfully!\nPlease REFRESH the page before creating a new route.`;window.scrollTo({top:0,behavior:'smooth'});}
-      catch(err){console.error(err);sm.innerText='❌ Submission failed. Please try again.';sm.style.background='#dc3545';document.querySelector('.submit-btn').style.display='';}
+      if (!document.querySelectorAll('#vendorContainer .vendor-card').length) { alert('Please add at least one vendor.'); return; }
+      if (!document.getElementById('routeName').value.trim()) { alert('Please enter a Route Name.'); return; }
+      if (!document.getElementById('routeId').value) document.getElementById('routeId').value = 'RT-' + Date.now().toString(36).toUpperCase();
+      document.querySelector('.submit-btn').style.display = 'none';
+      const sm = document.getElementById('successMessage');
+      sm.innerText = '✅ Route submitted successfully!\nPlease REFRESH the page before creating a new route.';
+      sm.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   </script>
 </body>
