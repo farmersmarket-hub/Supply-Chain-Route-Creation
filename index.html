@@ -7,174 +7,470 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
-      background: linear-gradient(to bottom right, #d1fae5, #a8e6cf, #e6d7b2);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: background 0.4s ease;
+    }
+    body.mode-new {
+      background: linear-gradient(to bottom right, #d1fae5, #a8e6cf, #e6d7b2);
+    }
+    body.mode-amend {
+      background: linear-gradient(to bottom right, #fef3c7, #fde68a, #fbbf24);
     }
     .glass {
-      background: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.65);
       backdrop-filter: blur(15px);
       -webkit-backdrop-filter: blur(15px);
       border-radius: 15px;
       padding: 30px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-      width: 700px;
-      height: 85vh;
+      width: 720px;
+      height: 90vh;
       overflow-y: auto;
     }
     label { font-weight: bold; color: #333; }
+
+    /* Theme-aware elements (change color based on toggle mode) */
+    .theme-text.mode-new { color: #047857; }     /* emerald-700 */
+    .theme-text.mode-amend { color: #b45309; }   /* amber-700 */
+    .theme-bg.mode-new { background-color: #10b981; }
+    .theme-bg.mode-new:hover { background-color: #059669; }
+    .theme-bg.mode-amend { background-color: #f59e0b; }
+    .theme-bg.mode-amend:hover { background-color: #d97706; }
+    .theme-border.mode-new { border-color: #10b981; }
+    .theme-border.mode-amend { border-color: #f59e0b; }
+    h2.theme-title.mode-new { color: #065f46; }
+    h2.theme-title.mode-amend { color: #92400e; }
+
+    /* Toggle switch */
     .toggle-switch { position: relative; width: 56px; height: 28px; display: inline-block; vertical-align: middle; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider { position: absolute; cursor: pointer; top:0;left:0;right:0;bottom:0; background-color: #10b981; border-radius: 28px; transition: 0.3s; }
     .toggle-slider::before { content:""; position:absolute; height:22px; width:22px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:0.3s; }
     .toggle-switch input:checked + .toggle-slider { background-color: #f59e0b; }
     .toggle-switch input:checked + .toggle-slider::before { transform: translateX(28px); }
-    .vendor-card { background: rgba(255,255,255,0.5); border:1px solid #d1d5db; border-radius:12px; padding:16px; margin-bottom:12px; }
-    .crop-card { background: rgba(236,253,245,0.6); border:1px solid #a7f3d0; border-radius:8px; padding:12px; margin-bottom:8px; }
-    .drag-handle { cursor:grab; user-select:none; color:#9ca3af; font-size:18px; }
-    .drag-handle:active { cursor:grabbing; }
-    .vendor-card.dragging { opacity:0.5; border:2px dashed #10b981; }
+
+    /* Cards */
+    .vendor-card {
+      background: rgba(255,255,255,0.55);
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .crop-card {
+      background: rgba(236,253,245,0.6);
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .crop-card.mode-amend {
+      background: rgba(254,243,199,0.6);
+      border-color: #fbbf24;
+    }
+
+    /* Definitions box */
+    .definitions {
+      background: rgba(255,255,255,0.5);
+      border-left: 4px solid #10b981;
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-size: 13px;
+    }
+    .definitions.mode-amend {
+      border-left-color: #f59e0b;
+    }
+    .definitions dt { font-weight: 700; color: #1f2937; margin-top: 4px; }
+    .definitions dd { margin-left: 0; color: #4b5563; margin-bottom: 6px; }
+
+    /* Day-of-week pills */
+    .day-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 2px solid #d1d5db;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      color: #6b7280;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .day-pill.selected.mode-new { background: #10b981; color: white; border-color: #10b981; }
+    .day-pill.selected.mode-amend { background: #f59e0b; color: white; border-color: #f59e0b; }
+
+    /* Confirmation overlay */
+    .confirm-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+    .confirm-modal {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      width: 600px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    /* Excluded dates chip */
+    .date-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      margin: 2px;
+    }
+    .date-chip button { color: #991b1b; font-weight: bold; }
   </style>
 </head>
-<body>
+<body class="mode-new">
   <div class="glass p-6">
     <div class="text-center mb-4">
       <a href="https://farmersmarket-hub.github.io/Home/" target="_blank">
-        <img src="Market_logo.png" alt="Market Logo" class="mx-auto" style="max-height: 100px;">
+        <img src="images/Market_logo.png" alt="Market Logo" class="mx-auto" style="max-height: 100px;">
       </a>
     </div>
-    <h2 class="text-2xl font-bold text-center mb-2 text-gray-900">Supply Chain Route Creation</h2>
-    <p class="text-center italic text-sm text-gray-700 mb-6">Complete this form to create or amend a supply chain pickup route.</p>
+    <h2 id="formTitle" class="theme-title mode-new text-2xl font-bold text-center mb-2">Supply Chain Route Creation</h2>
+    <p class="text-center italic text-sm text-gray-700 mb-4">Manager completes this form to create or amend a supply chain pickup route. Only managers have access to this form.</p>
+
+    <!-- Key Definitions -->
+    <div id="definitionsBox" class="definitions mode-new mb-5">
+      <p class="font-bold text-gray-800 mb-2">📖 Key Definitions</p>
+      <dl>
+        <dt>Route Run</dt>
+        <dd>A single scheduled trip across all vendor stops on this route (e.g., one Thursday pickup).</dd>
+        <dt>Aggregator</dt>
+        <dd>The business/driver responsible for picking up produce from all vendors on the route and delivering it to the purchaser.</dd>
+        <dt>Pick-up</dt>
+        <dd>The total of all produce collected from a single vendor in one route run.</dd>
+        <dt>Load</dt>
+        <dd>A single produce item in a single pick-up for a single vendor.</dd>
+        <dt>Program Period</dt>
+        <dd>The full duration of the supply chain program, from start date to end date.</dd>
+      </dl>
+    </div>
 
     <form id="routeCreationForm" class="space-y-4" onsubmit="submitForm(event)">
 
-      <!-- 1. Toggle switch - new creation or amendment -->
+      <!-- Toggle: New / Amendment -->
       <div>
         <label>Route Mode <span class="text-red-500">*</span></label>
         <div class="flex items-center gap-3 mt-1">
-          <span class="text-sm font-semibold text-emerald-700">New Creation</span>
+          <span id="newLabel" class="text-sm font-semibold theme-text mode-new">New Creation</span>
           <label class="toggle-switch"><input type="checkbox" id="modeToggle" onchange="toggleMode()"><span class="toggle-slider"></span></label>
-          <span class="text-sm font-semibold text-amber-600">Amendment</span>
+          <span id="amendLabel" class="text-sm font-semibold text-gray-400">Amendment</span>
         </div>
         <p class="text-xs text-gray-500 mt-1" id="modeLabel">Creating a new route</p>
       </div>
 
-      <!-- Amendment: Route ID lookup (hidden by default) -->
+      <!-- Amendment: Route ID lookup -->
       <div id="amendmentSection" class="hidden">
         <label>Route ID to Amend <span class="text-red-500">*</span></label>
         <div class="flex gap-2">
           <input type="text" id="amendRouteId" class="flex-1 p-2 border rounded bg-white" placeholder="Enter existing Route ID">
-          <button type="button" onclick="retrieveRoute()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded font-semibold text-sm">Retrieve</button>
+          <button type="button" onclick="retrieveRoute()" class="theme-bg mode-amend text-white px-4 py-2 rounded font-semibold text-sm">Retrieve</button>
         </div>
+        <p class="text-xs text-gray-500 mt-1">Retrieves all existing route data for editing.</p>
       </div>
 
-      <!-- 2. Business registry visibility -->
-      <div>
-        <label>Do you want your business/organization to be visible within the regional vendor business registry within this app?</label>
-        <select id="businessVisible" name="businessVisible" class="w-full p-2 border rounded bg-white">
-          <option value="No">No</option>
-          <option value="Yes">Yes</option>
-        </select>
-      </div>
-
-      <!-- 3. Manager visibility -->
-      <div>
-        <label>Do you want your business/organization vendor status as a <span class="underline">manager</span> to be visible within the regional vendor business registry within this app?</label>
-        <select id="managerVisible" name="managerVisible" class="w-full p-2 border rounded bg-white">
-          <option value="No">No</option>
-          <option value="Yes">Yes</option>
-        </select>
-      </div>
-
-      <!-- 4. Route Name (autogenerate Route ID) -->
+      <!-- Route Name (autogenerates Route ID) -->
       <div>
         <label>Route Name <span class="text-red-500">*</span>
-          <span class="text-sm font-normal text-gray-500 block">(Route ID will be auto-generated)</span>
+          <span class="text-sm font-normal text-gray-500 block">(Route ID will be auto-generated on submit)</span>
         </label>
-        <input type="text" id="routeName" name="routeName" class="w-full p-2 border rounded bg-white" placeholder="e.g., Thursday NE Portland Route" required>
+        <input type="text" id="routeName" class="w-full p-2 border rounded bg-white" placeholder="e.g., Thursday NE Portland Route" required>
       </div>
 
       <div>
         <label>Route ID</label>
-        <input type="text" id="routeId" name="routeId" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-generated">
-      </div>
-
-      <!-- 5. Date of pick-up (autopopulate) -->
-      <div>
-        <label>Date of Pick-up
-          <span class="text-sm font-normal text-gray-500 block">(Auto-populated)</span>
-        </label>
-        <input type="date" id="pickupDate" name="pickupDate" class="w-full p-2 border rounded bg-white" readonly>
-      </div>
-
-      <!-- 6. (From start date to end date) Total number of route runs (autopopulate) -->
-      <div>
-        <label>Start Date <span class="text-red-500">*</span></label>
-        <input type="date" id="startDate" name="startDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
-      </div>
-
-      <div>
-        <label>End Date <span class="text-red-500">*</span></label>
-        <input type="date" id="endDate" name="endDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
-      </div>
-
-      <div>
-        <label>Total Number of Route Runs
-          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from start date to end date)</span>
-        </label>
-        <input type="number" id="totalRouteRuns" name="totalRouteRuns" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-calculated">
-      </div>
-
-      <!-- 7. Route creation or amendment date -->
-      <div>
-        <label>Route Creation or Amendment Date</label>
-        <input type="date" id="creationDate" name="creationDate" class="w-full p-2 border rounded bg-white" readonly>
+        <input type="text" id="routeId" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-generated">
       </div>
 
       <hr class="border-gray-300">
 
-      <!-- Vendors Section -->
+      <!-- PURCHASER SECTION -->
+      <h3 id="purchaserHeader" class="text-lg font-bold theme-text mode-new">Purchaser Details</h3>
+
+      <div>
+        <label>Purchaser Organization Name
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated based on Route ID — manual overwrite allowed)</span>
+        </label>
+        <input type="text" id="purchaserOrg" class="w-full p-2 border rounded bg-white" placeholder="Auto-populated or enter manually">
+      </div>
+
+      <div>
+        <label>Purchaser Type
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated based on Route ID)</span>
+        </label>
+        <select id="purchaserType" class="w-full p-2 border rounded bg-white" onchange="togglePurchaserIdField()">
+          <option value="">- Select -</option>
+          <option value="Program Sponsor">Program Sponsor</option>
+          <option value="Institutional Purchaser">Institutional Purchaser</option>
+          <option value="Program Manager">Program Manager</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div id="purchaserIdSection" class="hidden">
+        <label>Sponsor ID or Manager ID
+          <span class="text-sm font-normal text-gray-500 block">(Input if relevant for matching)</span>
+        </label>
+        <input type="text" id="purchaserId" class="w-full p-2 border rounded bg-white" placeholder="Enter Sponsor ID or Manager ID">
+      </div>
+
+      <div>
+        <label>Purchase Order #
+          <span class="text-sm font-normal text-gray-500 block">(Optional — auto-populated from available purchase orders submitted by sponsor or manager)</span>
+        </label>
+        <select id="purchaseOrderNum" class="w-full p-2 border rounded bg-white">
+          <option value="">- Select Purchase Order -</option>
+          <!-- Auto-populated from backend -->
+        </select>
+      </div>
+
+      <hr class="border-gray-300">
+
+      <!-- PROGRAM PERIOD SECTION -->
+      <h3 id="programHeader" class="text-lg font-bold theme-text mode-new">Program Period & Schedule</h3>
+
+      <div>
+        <label>Supply Chain Start Date <span class="text-red-500">*</span>
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from Contract form)</span>
+        </label>
+        <input type="date" id="startDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
+      </div>
+
+      <div>
+        <label>Supply Chain End Date <span class="text-red-500">*</span>
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from Contract form)</span>
+        </label>
+        <input type="date" id="endDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
+      </div>
+
+      <!-- Day(s) of the week for pick up -->
+      <div>
+        <label>Day(s) of the Week for Pick-up <span class="text-red-500">*</span></label>
+        <div class="flex gap-2 flex-wrap mt-2">
+          <div class="day-pill mode-new" data-day="1" onclick="toggleDay(this)">M</div>
+          <div class="day-pill mode-new" data-day="2" onclick="toggleDay(this)">T</div>
+          <div class="day-pill mode-new" data-day="3" onclick="toggleDay(this)">W</div>
+          <div class="day-pill mode-new" data-day="4" onclick="toggleDay(this)">Th</div>
+          <div class="day-pill mode-new" data-day="5" onclick="toggleDay(this)">F</div>
+          <div class="day-pill mode-new" data-day="6" onclick="toggleDay(this)">S</div>
+          <div class="day-pill mode-new" data-day="0" onclick="toggleDay(this)">Su</div>
+        </div>
+        <input type="hidden" id="selectedDays">
+      </div>
+
+      <!-- Periodicity -->
+      <div>
+        <label>Periodicity <span class="text-red-500">*</span></label>
+        <select id="periodicity" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
+          <option value="">- Select -</option>
+          <option value="Weekly">Weekly</option>
+          <option value="Bi-weekly">Bi-weekly</option>
+          <option value="Monthly">Monthly</option>
+        </select>
+      </div>
+
+      <!-- Total number of route runs (auto) -->
+      <div>
+        <label>Total Number of Route Runs Across Program Period
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from dates, days, and periodicity)</span>
+        </label>
+        <input type="number" id="totalRouteRuns" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-calculated">
+      </div>
+
+      <!-- First pick-up date -->
+      <div>
+        <label>First Pick-up Date
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from Contract form — manual override available via amendment)</span>
+        </label>
+        <input type="date" id="firstPickupDate" class="w-full p-2 border rounded bg-white">
+      </div>
+
+      <!-- Dates to remove from schedule -->
+      <div>
+        <label>Dates to Remove from the Schedule
+          <span class="text-sm font-normal text-gray-500 block">(Any pick-up dates that land on a holiday or need to be adjusted)</span>
+        </label>
+        <div class="flex gap-2">
+          <input type="date" id="excludeDateInput" class="flex-1 p-2 border rounded bg-white">
+          <button type="button" onclick="addExcludedDate()" class="theme-bg mode-new text-white px-4 py-2 rounded font-semibold text-sm">+ Add</button>
+        </div>
+        <div id="excludedDatesContainer" class="mt-2"></div>
+      </div>
+
+      <hr class="border-gray-300">
+
+      <!-- AGGREGATOR SECTION -->
+      <h3 id="aggregatorHeader" class="text-lg font-bold theme-text mode-new">Aggregator Details</h3>
+
+      <div>
+        <label>Aggregator Business Name
+          <span class="text-sm font-normal text-gray-500 block">(Auto-retrieved)</span>
+        </label>
+        <input type="text" id="aggregatorBusiness" class="w-full p-2 border rounded bg-white" placeholder="Auto-retrieved">
+      </div>
+
+      <div>
+        <label>Primary Contact Name (First and Last)
+          <span class="text-sm font-normal text-gray-500 block">(Auto-retrieved)</span>
+        </label>
+        <input type="text" id="aggregatorContact" class="w-full p-2 border rounded bg-white" placeholder="Auto-retrieved">
+      </div>
+
+      <div>
+        <label>Aggregator Certifications
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated from document upload form)</span>
+        </label>
+        <input type="text" id="aggregatorCerts" class="w-full p-2 border rounded bg-white" readonly placeholder="Auto-populated from document upload form">
+      </div>
+
+      <div>
+        <label>Departure Location
+          <span class="text-sm font-normal text-gray-500 block">(Auto-populated with manual override)</span>
+        </label>
+        <input type="text" id="departureLocation" class="w-full p-2 border rounded bg-white" placeholder="Street, City, State, ZIP">
+      </div>
+
+      <div>
+        <label>Max Transportation Size Capacity</label>
+        <input type="text" id="maxCapacity" class="w-full p-2 border rounded bg-white" placeholder="e.g., 2,500 lbs or 40 boxes">
+      </div>
+
+      <div>
+        <label>Refrigerated Transport?</label>
+        <select id="refrigerated" class="w-full p-2 border rounded bg-white">
+          <option value="">- Select -</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Estimated Start Time
+          <span class="text-sm font-normal text-gray-500 block">(Optional)</span>
+        </label>
+        <input type="time" id="estimatedStartTime" class="w-full p-2 border rounded bg-white" onchange="recalculatePickupTimes()">
+      </div>
+
+      <hr class="border-gray-300">
+
+      <!-- PAYMENT SECTION -->
+      <h3 id="paymentHeader" class="text-lg font-bold theme-text mode-new">Payment</h3>
+
+      <div>
+        <label>Time of Payment <span class="text-red-500">*</span></label>
+        <select id="timeOfPayment" class="w-full p-2 border rounded bg-white" required>
+          <option value="">- Select -</option>
+          <option value="Pay Now (pick-up day)">Pay Now (pick-up day)</option>
+          <option value="Pay Later (end of month or end of program)">Pay Later (end of month or end of program)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Payment Period <span class="text-red-500">*</span></label>
+        <select id="paymentPeriod" class="w-full p-2 border rounded bg-white" required>
+          <option value="">- Select -</option>
+          <option value="After each run">After each run</option>
+          <option value="Monthly">Monthly</option>
+          <option value="At the end of the program period">At the end of the program period</option>
+        </select>
+      </div>
+
+      <hr class="border-gray-300">
+
+      <!-- ROUTE ORDER SECTION -->
+      <h3 id="routeOrderHeader" class="text-lg font-bold theme-text mode-new">Route Order</h3>
+
+      <div>
+        <label>Route Order <span class="text-red-500">*</span></label>
+        <select id="routeOrderType" class="w-full p-2 border rounded bg-white" required onchange="toggleRouteOrder()">
+          <option value="">- Select -</option>
+          <option value="Manual">Manual</option>
+          <option value="Optimized">Optimized</option>
+        </select>
+      </div>
+
+      <!-- Optimization priority (shown if Optimized) -->
+      <div id="optimizationSection" class="hidden">
+        <label>Optimization Priority <span class="text-red-500">*</span></label>
+        <select id="optimizationPriority" class="w-full p-2 border rounded bg-white">
+          <option value="">- Select Priority -</option>
+          <option value="Time efficiency">Time efficiency</option>
+          <option value="Number of crops needing refrigeration">Number of crops needing refrigeration</option>
+          <option value="Relative volume of crops needing refrigeration">Relative volume of crops needing refrigeration</option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1">Route will be optimized upon form submission.</p>
+      </div>
+
+      <hr class="border-gray-300">
+
+      <!-- VENDORS SECTION -->
       <div>
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-bold text-gray-800">Vendors on Route</h3>
-          <button type="button" onclick="addVendorCard()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-1.5 rounded-full font-semibold">+ Add Vendor</button>
+          <h3 id="vendorsHeader" class="text-lg font-bold theme-text mode-new">Vendors on Route</h3>
+          <button type="button" onclick="addVendorCard()" id="addVendorBtn" class="theme-bg mode-new text-white text-sm px-4 py-1.5 rounded-full font-semibold">+ Add Vendor</button>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Drag <span class="drag-handle">⠿</span> to reorder vendor pickup sequence.</p>
+        <p class="text-xs text-gray-500 mt-1">Only vendors listed in the Contract form can be added. Only produce items they listed in the Vendor Registration and Update form will appear.</p>
       </div>
 
       <div id="vendorContainer"></div>
 
       <hr class="border-gray-300">
 
-      <!-- Route Creation and Amendment section -->
-      <h3 class="text-lg font-bold text-gray-800">Route Creation and Amendment</h3>
-
-      <!-- Route Name (text field) -->
+      <!-- Route Creation / Amendment Date -->
       <div>
-        <label>Route Name (text field)</label>
-        <input type="text" id="routeNameAmend" name="routeNameAmend" class="w-full p-2 border rounded bg-white" placeholder="Enter or update route name">
-      </div>
-
-      <!-- Order of vendors (AI generated?) -->
-      <div>
-        <label>Order of Vendors
-          <span class="text-sm font-normal text-gray-500 block">(?)</span>
-        </label>
-        <textarea id="vendorOrder" name="vendorOrder" class="w-full p-2 border rounded bg-white" rows="3" readonly placeholder="Auto-generated vendor pickup order will appear here"></textarea>
+        <label>Route Creation or Amendment Date</label>
+        <input type="date" id="creationDate" class="w-full p-2 border rounded bg-white" readonly>
       </div>
 
       <div class="text-center">
-        <button type="submit" class="submit-btn bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-full mt-4">Submit Route</button>
+        <button type="submit" id="submitBtn" class="submit-btn theme-bg mode-new text-white font-bold py-2 px-6 rounded-full mt-4">Submit Route</button>
       </div>
-      <div id="successMessage" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 mt-2" role="alert"></div>
     </form>
   </div>
 
-  <script>
-    let vendorCounter = 0, draggedCard = null;
+  <!-- Confirmation Modal -->
+  <div id="confirmOverlay" class="confirm-overlay hidden">
+    <div class="confirm-modal">
+      <div class="text-center mb-4">
+        <div class="text-5xl mb-2">✅</div>
+        <h2 class="text-2xl font-bold text-gray-800">Route Submitted Successfully!</h2>
+        <p class="text-sm text-gray-600 mt-1">Notifications have been sent to the manager and all listed vendors.</p>
+      </div>
 
+      <div id="confirmContent" class="space-y-3 border-t border-gray-200 pt-4"></div>
+
+      <div class="text-center mt-6">
+        <button type="button" onclick="closeConfirmation()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── State ───
+    let vendorCounter = 0;
+    let currentMode = 'new';
+    let selectedDays = new Set();
+    let excludedDates = [];
+    let contractVendors = []; // In production: fetched from Contract form
+
+    // Produce categories — should match Upcoming Market form edit list
     const produceCategories = {
       "Vegetables": ["African eggplants","Beans","Beets","Bell Pepper","Black Eyed Peas","Broccoli","Carrots","Cauliflower","Celery","Chilies","Cilantro","Collard Greens","Corn","Cucumbers","Garlic","Green Beans","Kale","Lettuce","Mchicha (African Spinach)","Nightshade","Onions","Peas","Potatoes","Pumpkin and Leaves","Radish","Sweet Potato Leaves","Swiss Chards","Tomatillo","Tomatoes","Zucchini","Other"],
       "Fruits": ["Blueberries","Strawberry","Other"],
@@ -184,36 +480,145 @@
 
     // Init
     document.getElementById('creationDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    document.getElementById('pickupDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
+    // ─── Mode Toggle with Color Switch ───
     function toggleMode() {
-      const a = document.getElementById('modeToggle').checked;
-      document.getElementById('amendmentSection').classList.toggle('hidden', !a);
-      document.getElementById('modeLabel').textContent = a ? 'Amending an existing route' : 'Creating a new route';
+      currentMode = document.getElementById('modeToggle').checked ? 'amend' : 'new';
+      document.getElementById('amendmentSection').classList.toggle('hidden', currentMode !== 'amend');
+      document.getElementById('modeLabel').textContent = currentMode === 'amend' ? 'Amending an existing route' : 'Creating a new route';
+
+      // Apply color theme to body
+      document.body.classList.remove('mode-new', 'mode-amend');
+      document.body.classList.add(`mode-${currentMode}`);
+
+      // Labels
+      document.getElementById('newLabel').className = `text-sm font-semibold ${currentMode === 'new' ? 'theme-text mode-new' : 'text-gray-400'}`;
+      document.getElementById('amendLabel').className = `text-sm font-semibold ${currentMode === 'amend' ? 'theme-text mode-amend' : 'text-gray-400'}`;
+
+      // All themed elements swap mode class
+      document.querySelectorAll('.theme-text, .theme-bg, .theme-border, .theme-title, .definitions, .day-pill, .crop-card').forEach(el => {
+        el.classList.remove('mode-new', 'mode-amend');
+        el.classList.add(`mode-${currentMode}`);
+      });
+
+      // Update title
+      document.getElementById('formTitle').className = `theme-title mode-${currentMode} text-2xl font-bold text-center mb-2`;
     }
 
+    // ─── Purchaser Type Change ───
+    function togglePurchaserIdField() {
+      const t = document.getElementById('purchaserType').value;
+      const show = (t === 'Program Sponsor' || t === 'Program Manager');
+      document.getElementById('purchaserIdSection').classList.toggle('hidden', !show);
+    }
+
+    // ─── Retrieve Route (amendment) ───
     function retrieveRoute() {
       const id = document.getElementById('amendRouteId').value.trim();
       if (!id) { alert('Please enter a Route ID.'); return; }
       document.getElementById('routeId').value = id;
-      alert('Route retrieval will connect to your backend. Route ID set.');
+      alert('Route retrieval will connect to your backend. All fields will auto-populate from existing route data.');
     }
 
+    // ─── Day of Week Toggle ───
+    function toggleDay(el) {
+      const day = el.dataset.day;
+      if (selectedDays.has(day)) {
+        selectedDays.delete(day);
+        el.classList.remove('selected');
+      } else {
+        selectedDays.add(day);
+        el.classList.add('selected');
+      }
+      document.getElementById('selectedDays').value = [...selectedDays].join(',');
+      calculateRouteRuns();
+    }
+
+    // ─── Calculate Route Runs ───
     function calculateRouteRuns() {
       const s = document.getElementById('startDate').value;
       const e = document.getElementById('endDate').value;
-      if (!s || !e) return;
-      const sd = new Date(s + 'T00:00:00'), ed = new Date(e + 'T00:00:00');
+      const period = document.getElementById('periodicity').value;
+      if (!s || !e || !period || selectedDays.size === 0) return;
+
+      const sd = new Date(s + 'T00:00:00');
+      const ed = new Date(e + 'T00:00:00');
       if (ed <= sd) { document.getElementById('totalRouteRuns').value = 0; return; }
-      const diffDays = Math.floor((ed - sd) / (1000 * 60 * 60 * 24));
-      const weeks = Math.floor(diffDays / 7);
-      document.getElementById('totalRouteRuns').value = weeks > 0 ? weeks : 1;
-      if (!document.getElementById('modeToggle').checked && !document.getElementById('routeId').value) {
-        document.getElementById('routeId').value = 'RT-' + Date.now().toString(36).toUpperCase();
+
+      const increment = period === 'Weekly' ? 7 : period === 'Bi-weekly' ? 14 : 28;
+      let count = 0;
+      let current = new Date(sd);
+
+      // Iterate through each week/period, count matching days
+      while (current <= ed) {
+        for (let i = 0; i < 7 && current <= ed; i++) {
+          if (selectedDays.has(String(current.getDay()))) {
+            const dateStr = current.toLocaleDateString('en-CA');
+            if (!excludedDates.includes(dateStr)) count++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        // Skip to next period (already advanced 7 days for weekly; for biweekly add 7 more)
+        if (increment > 7) current.setDate(current.getDate() + (increment - 7));
       }
+
+      document.getElementById('totalRouteRuns').value = count;
       recalcAllGrandTotals();
     }
 
+    // ─── Excluded Dates ───
+    function addExcludedDate() {
+      const input = document.getElementById('excludeDateInput');
+      const d = input.value;
+      if (!d || excludedDates.includes(d)) return;
+      excludedDates.push(d);
+      renderExcludedDates();
+      input.value = '';
+      calculateRouteRuns();
+    }
+
+    function removeExcludedDate(d) {
+      excludedDates = excludedDates.filter(x => x !== d);
+      renderExcludedDates();
+      calculateRouteRuns();
+    }
+
+    function renderExcludedDates() {
+      const c = document.getElementById('excludedDatesContainer');
+      c.innerHTML = excludedDates.map(d => `<span class="date-chip">${d} <button type="button" onclick="removeExcludedDate('${d}')">✕</button></span>`).join('');
+    }
+
+    // ─── Route Order Toggle ───
+    function toggleRouteOrder() {
+      const t = document.getElementById('routeOrderType').value;
+      document.getElementById('optimizationSection').classList.toggle('hidden', t !== 'Optimized');
+      // Refresh vendor cards to show/hide manual order dropdown
+      document.querySelectorAll('.vendor-card').forEach(card => updateVendorOrderControls(card));
+    }
+
+    function updateVendorOrderControls(card) {
+      const idx = card.dataset.vendorIdx;
+      const orderType = document.getElementById('routeOrderType').value;
+      const manualSection = card.querySelector(`#manualOrderSection-${idx}`);
+      if (!manualSection) return;
+      manualSection.classList.toggle('hidden', orderType !== 'Manual');
+      if (orderType === 'Manual') populateOrderDropdowns();
+    }
+
+    function populateOrderDropdowns() {
+      const cards = document.querySelectorAll('#vendorContainer .vendor-card');
+      const total = cards.length;
+      cards.forEach(card => {
+        const idx = card.dataset.vendorIdx;
+        const sel = card.querySelector(`#manualOrder-${idx}`);
+        if (!sel) return;
+        const current = sel.value;
+        sel.innerHTML = '<option value="">- Select Order # -</option>';
+        for (let i = 1; i <= total; i++) sel.innerHTML += `<option value="${i}" ${current == i ? 'selected' : ''}>${i}</option>`;
+      });
+    }
+
+    // ─── Add Vendor Card ───
     function addVendorCard() {
       vendorCounter++;
       const idx = vendorCounter;
@@ -221,25 +626,27 @@
       const card = document.createElement('div');
       card.className = 'vendor-card';
       card.id = `vendor-card-${idx}`;
-      card.draggable = true;
       card.dataset.vendorIdx = idx;
 
       card.innerHTML = `
         <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="drag-handle" title="Drag to reorder">⠿</span>
-            <span class="font-bold text-gray-700">Stop #<span class="stop-number">${container.children.length + 1}</span></span>
-          </div>
+          <span class="font-bold text-gray-700">Vendor Stop <span class="stop-number">${container.children.length + 1}</span></span>
           <button type="button" onclick="removeVendorCard(${idx})" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
         </div>
         <div class="space-y-3">
 
-          <!-- Vendor Name (autoretrieve Vendor ID and address) -->
+          <!-- Vendor Name (filtered from Contract form vendors only) -->
           <div>
             <label class="text-sm">Vendor Name <span class="text-red-500">*</span>
-              <span class="text-xs font-normal text-gray-500 block">(Auto-retrieves Vendor ID and address)</span>
+              <span class="text-xs font-normal text-gray-500 block">(Only vendors listed in Contract form appear here)</span>
             </label>
-            <input type="text" id="vName-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Enter Vendor Name" onchange="lookupVendor(${idx})">
+            <select id="vName-${idx}" class="w-full p-2 border rounded bg-white text-sm" onchange="onVendorSelected(${idx})">
+              <option value="">- Select Vendor -</option>
+              <!-- In production: populated from Contract form vendors -->
+              <option value="SAMPLE-VENDOR-1|V-1001|123 Main St, Portland, OR">[Sample] Green Acres Farm</option>
+              <option value="SAMPLE-VENDOR-2|V-1002|456 Oak Ave, Portland, OR">[Sample] Sunrise Produce</option>
+              <option value="SAMPLE-VENDOR-3|V-1003|789 Elm Rd, Portland, OR">[Sample] Heritage Growers</option>
+            </select>
           </div>
 
           <div>
@@ -247,63 +654,111 @@
             <input type="text" id="vId-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly>
           </div>
 
+          <!-- Manual order dropdown (shown only if Manual selected) -->
+          <div id="manualOrderSection-${idx}" class="hidden">
+            <label class="text-sm">Pickup Order # <span class="text-red-500">*</span></label>
+            <select id="manualOrder-${idx}" class="w-full p-2 border rounded bg-white text-sm">
+              <option value="">- Select Order # -</option>
+            </select>
+          </div>
+
+          <!-- Pickup Address (confirm — auto-populated, manual override) -->
           <div>
-            <label class="text-sm">Address
-              <span class="text-xs font-normal text-gray-500 block">(Auto-retrieved — optional manual overwrite)</span>
+            <label class="text-sm">Pick-up Address <span class="text-red-500">*</span>
+              <span class="text-xs font-normal text-gray-500 block">(Auto-populated from vendor primary address — confirm or manually override)</span>
             </label>
-            <input type="text" id="vAddr-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Auto-populated or manually enter">
+            <input type="text" id="vAddr-${idx}" class="w-full p-2 border rounded bg-white text-sm" placeholder="Confirm or override address">
           </div>
 
-          <!-- Order # of pick-up -->
+          <!-- Expected pickup time (autogenerated) -->
           <div>
-            <label class="text-sm">Order # of Pick-up</label>
-            <input type="number" id="vOrder-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly>
+            <label class="text-sm">Expected Pick-up Time
+              <span class="text-xs font-normal text-gray-500 block">(Auto-generated based on aggregator start time and distance between stops)</span>
+            </label>
+            <input type="time" id="vPickupTime-${idx}" class="w-full p-2 border rounded bg-white text-sm" readonly>
           </div>
 
-          <!-- Crops Section -->
-          <div class="flex items-center justify-between mt-2">
-            <label class="text-sm mb-0">Crops assigned for pick up for each vendor</label>
-            <button type="button" onclick="addCropRow(${idx})" class="bg-green-100 hover:bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full font-semibold">+ Add Item</button>
+          <!-- Crops/Items section -->
+          <div class="pt-2 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm mb-0">Crops Assigned for Pick-up</label>
+              <button type="button" onclick="addCropRow(${idx})" class="bg-green-100 hover:bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full font-semibold">+ Add Item</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">Only produce items listed in this vendor's Registration form appear below.</p>
+            <div id="cropContainer-${idx}"></div>
           </div>
-          <div id="cropContainer-${idx}"></div>
 
         </div>
       `;
 
       container.appendChild(card);
       updateStopNumbers();
-      updateVendorOrder();
-      initDragAndDrop();
-      addCropRow(idx);
+      recalculatePickupTimes();
+      if (document.getElementById('routeOrderType').value === 'Manual') {
+        populateOrderDropdowns();
+        updateVendorOrderControls(card);
+      }
     }
 
     function removeVendorCard(idx) {
       const c = document.getElementById(`vendor-card-${idx}`);
       if (c) c.remove();
       updateStopNumbers();
-      updateVendorOrder();
+      recalculatePickupTimes();
+      if (document.getElementById('routeOrderType').value === 'Manual') populateOrderDropdowns();
     }
 
-    function lookupVendor(idx) {
-      // Placeholder: will connect to backend to autoretrieve Vendor ID and address
-      // For now fields are manually fillable
+    function onVendorSelected(idx) {
+      const sel = document.getElementById(`vName-${idx}`);
+      const val = sel.value;
+      if (!val) return;
+      const [name, vendorId, address] = val.split('|');
+      document.getElementById(`vId-${idx}`).value = vendorId;
+      document.getElementById(`vAddr-${idx}`).value = address;
+      // In production: also reload crop category/items dropdowns scoped to this vendor's Registration
     }
 
+    function updateStopNumbers() {
+      document.querySelectorAll('#vendorContainer .vendor-card').forEach((c, i) => {
+        c.querySelector('.stop-number').textContent = i + 1;
+      });
+    }
+
+    // ─── Recalculate Expected Pickup Times ───
+    function recalculatePickupTimes() {
+      const startTime = document.getElementById('estimatedStartTime').value;
+      if (!startTime) return;
+      const cards = document.querySelectorAll('#vendorContainer .vendor-card');
+      // Placeholder: 20 min between stops. In production, compute from geo distance.
+      const [h, m] = startTime.split(':').map(Number);
+      let mins = h * 60 + m;
+      cards.forEach((card, i) => {
+        const idx = card.dataset.vendorIdx;
+        const t = document.getElementById(`vPickupTime-${idx}`);
+        if (t) {
+          const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
+          const mm = String(mins % 60).padStart(2, '0');
+          t.value = `${hh}:${mm}`;
+        }
+        mins += 20;
+      });
+    }
+
+    // ─── Add Crop Row ───
     function addCropRow(vendorIdx) {
       const container = document.getElementById(`cropContainer-${vendorIdx}`);
       const num = container.children.length + 1;
       const row = document.createElement('div');
-      row.className = 'crop-card';
+      row.className = `crop-card mode-${currentMode}`;
       row.id = `crop-${vendorIdx}-${num}-${Date.now()}`;
 
       row.innerHTML = `
         <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-bold text-green-700">Item #${num}</span>
+          <span class="text-xs font-bold theme-text mode-${currentMode}">Item #${num}</span>
           <button type="button" onclick="this.closest('.crop-card').remove(); recalcAllGrandTotals();" class="text-red-400 hover:text-red-600 text-sm">✕</button>
         </div>
         <div class="space-y-2">
 
-          <!-- Produce Category -->
           <div>
             <label class="text-xs font-semibold">Produce Category</label>
             <select class="w-full p-1.5 border rounded bg-white text-sm crop-category" onchange="populateItems(this)">
@@ -312,7 +767,6 @@
             </select>
           </div>
 
-          <!-- Produce Item -->
           <div>
             <label class="text-xs font-semibold">Produce Item</label>
             <select class="w-full p-1.5 border rounded bg-white text-sm crop-item">
@@ -320,41 +774,45 @@
             </select>
           </div>
 
-          <!-- Optional text field -->
           <div>
             <label class="text-xs font-semibold">Specify / Description (optional)</label>
             <input type="text" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="e.g., cherry tomatoes, organic">
           </div>
 
-          <!-- Total quantity of each item (pounds and/or boxes) -->
+          <!-- Total Quantity across program period -->
           <div>
-            <label class="text-xs font-semibold">Total Quantity of Each Item (lbs)</label>
-            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-lbs" placeholder="0">
+            <label class="text-xs font-semibold">Total Quantity of Item (in pounds) across the program period</label>
+            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-program" placeholder="0">
           </div>
 
           <div>
-            <label class="text-xs font-semibold">Total Quantity of Each Item (boxes)</label>
-            <input type="number" step="1" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-boxes" placeholder="0">
+            <label class="text-xs font-normal text-gray-500">Additional info (optional, e.g., number of boxes)</label>
+            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-program-note" placeholder="e.g., 25 boxes total">
           </div>
 
-          <!-- Expected total quantity per load per item -->
+          <!-- Total Quantity in a Single Pick-up -->
           <div>
-            <label class="text-xs font-semibold">Expected Total Quantity per Load per Item</label>
+            <label class="text-xs font-semibold">Total Quantity of Item in a Single Pick-up (in pounds)</label>
             <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load" placeholder="0" oninput="recalcGrandTotal(this)">
+          </div>
+
+          <div>
+            <label class="text-xs font-normal text-gray-500">Additional info (optional, e.g., number of boxes)</label>
+            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load-note" placeholder="e.g., 3 boxes per pick-up">
           </div>
 
           <!-- Wholesale Unit Price -->
           <div>
             <label class="text-xs font-semibold">Wholesale Unit Price ($)
-              <span class="text-xs font-normal text-gray-500 block">(Auto-populate from Upcoming Market form OR manual input here)</span>
+              <span class="text-xs font-normal text-gray-500 block">(Auto-populates if already preset in Upcoming Market form)</span>
             </label>
             <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-unit-price" placeholder="0.00" oninput="recalcGrandTotal(this)">
           </div>
 
-          <!-- Grand Total Price per Item (autopopulate) -->
+          <!-- Grand Total per Item -->
           <div>
             <label class="text-xs font-semibold">Grand Total Price per Item
-              <span class="text-xs font-normal text-gray-500 block">(Auto-populated: Unit Price × Qty per Load × Total Route Runs)</span>
+              <span class="text-xs font-normal text-gray-500 block">(Auto-populated: Unit Price × Qty per Pick-up × Total Route Runs)</span>
             </label>
             <input type="text" class="w-full p-1.5 border rounded bg-white text-sm font-bold crop-grand-total" readonly value="$0.00">
           </div>
@@ -368,7 +826,13 @@
       const cat = sel.value;
       const items = sel.closest('.crop-card').querySelector('.crop-item');
       items.innerHTML = '<option value="">- Select Item -</option>';
-      if (produceCategories[cat]) produceCategories[cat].forEach(i => { const o = document.createElement('option'); o.value = i; o.textContent = i; items.appendChild(o); });
+      if (produceCategories[cat]) {
+        produceCategories[cat].forEach(i => {
+          const o = document.createElement('option');
+          o.value = i; o.textContent = i;
+          items.appendChild(o);
+        });
+      }
     }
 
     function recalcGrandTotal(el) {
@@ -389,50 +853,57 @@
       });
     }
 
-    function updateStopNumbers() {
-      document.querySelectorAll('#vendorContainer .vendor-card').forEach((c, i) => {
-        c.querySelector('.stop-number').textContent = i + 1;
-        const o = c.querySelector('[id^="vOrder-"]');
-        if (o) o.value = i + 1;
-      });
-    }
-
-    function updateVendorOrder() {
-      const names = [];
-      document.querySelectorAll('#vendorContainer .vendor-card').forEach((c, i) => {
-        const idx = c.dataset.vendorIdx;
-        const name = document.getElementById(`vName-${idx}`)?.value || `Vendor ${i + 1}`;
-        names.push(`${i + 1}. ${name}`);
-      });
-      document.getElementById('vendorOrder').value = names.join('\n');
-    }
-
-    function initDragAndDrop() {
-      document.querySelectorAll('#vendorContainer .vendor-card').forEach(card => {
-        card.ondragstart = function(e) { draggedCard = this; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
-        card.ondragend = function() { this.classList.remove('dragging'); draggedCard = null; updateStopNumbers(); updateVendorOrder(); };
-        card.ondragover = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
-        card.ondrop = function(e) {
-          e.preventDefault();
-          if (draggedCard && draggedCard !== this) {
-            const c = document.getElementById('vendorContainer'), a = [...c.querySelectorAll('.vendor-card')];
-            a.indexOf(draggedCard) < a.indexOf(this) ? this.parentNode.insertBefore(draggedCard, this.nextSibling) : this.parentNode.insertBefore(draggedCard, this);
-            updateStopNumbers(); updateVendorOrder();
-          }
-        };
-      });
-    }
-
+    // ─── Submit ───
     function submitForm(e) {
       e.preventDefault();
-      if (!document.querySelectorAll('#vendorContainer .vendor-card').length) { alert('Please add at least one vendor.'); return; }
+      const cards = document.querySelectorAll('#vendorContainer .vendor-card');
+      if (!cards.length) { alert('Please add at least one vendor.'); return; }
       if (!document.getElementById('routeName').value.trim()) { alert('Please enter a Route Name.'); return; }
-      if (!document.getElementById('routeId').value) document.getElementById('routeId').value = 'RT-' + Date.now().toString(36).toUpperCase();
-      document.querySelector('.submit-btn').style.display = 'none';
-      const sm = document.getElementById('successMessage');
-      sm.innerText = '✅ Route submitted successfully!\nPlease REFRESH the page before creating a new route.';
-      sm.style.display = 'block';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!document.getElementById('routeId').value) {
+        document.getElementById('routeId').value = 'RT-' + Date.now().toString(36).toUpperCase();
+      }
+
+      // Build vendor summary for confirmation
+      const routeOrderType = document.getElementById('routeOrderType').value;
+      const optimizationPriority = document.getElementById('optimizationPriority').value;
+
+      let vendorSummary = [];
+      cards.forEach(card => {
+        const idx = card.dataset.vendorIdx;
+        const nameSel = document.getElementById(`vName-${idx}`);
+        const nameText = nameSel.selectedOptions[0]?.text || '';
+        const order = routeOrderType === 'Manual' ? (document.getElementById(`manualOrder-${idx}`)?.value || '-') : null;
+        vendorSummary.push({ name: nameText, order: order, addr: document.getElementById(`vAddr-${idx}`)?.value || '' });
+      });
+
+      // If optimized, note that route will be generated upon submission
+      const content = `
+        <div><span class="font-bold">Route Name:</span> ${document.getElementById('routeName').value}</div>
+        <div><span class="font-bold">Route ID:</span> ${document.getElementById('routeId').value}</div>
+        <div><span class="font-bold">Mode:</span> ${currentMode === 'new' ? 'New Creation' : 'Amendment'}</div>
+        <div><span class="font-bold">Purchaser:</span> ${document.getElementById('purchaserOrg').value || '-'}</div>
+        <div><span class="font-bold">Program Period:</span> ${document.getElementById('startDate').value} to ${document.getElementById('endDate').value}</div>
+        <div><span class="font-bold">Periodicity:</span> ${document.getElementById('periodicity').value || '-'}</div>
+        <div><span class="font-bold">Total Route Runs:</span> ${document.getElementById('totalRouteRuns').value}</div>
+        <div><span class="font-bold">Route Order:</span> ${routeOrderType || '-'}${routeOrderType === 'Optimized' ? ` (optimized for ${optimizationPriority})` : ''}</div>
+        <div class="pt-2 border-t border-gray-200">
+          <div class="font-bold mb-1">Vendor Route Order:</div>
+          ${routeOrderType === 'Optimized'
+            ? `<div class="text-sm text-gray-600 italic">Route order will be optimized upon submission based on ${optimizationPriority || 'selected priority'}. Final order will be emailed to manager and vendors, and displayed in each vendor's My Profile / Program Activity page.</div>`
+            : `<ol class="list-decimal pl-5 text-sm">${vendorSummary.sort((a,b) => (a.order||99) - (b.order||99)).map(v => `<li>${v.name} — ${v.addr}</li>`).join('')}</ol>`
+          }
+        </div>
+        <div class="pt-3 text-xs text-gray-500 italic">
+          📨 Notifications with all key details have been sent to the manager and all listed vendors.
+        </div>
+      `;
+
+      document.getElementById('confirmContent').innerHTML = content;
+      document.getElementById('confirmOverlay').classList.remove('hidden');
+    }
+
+    function closeConfirmation() {
+      document.getElementById('confirmOverlay').classList.add('hidden');
     }
   </script>
 </body>
