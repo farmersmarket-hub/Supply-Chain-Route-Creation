@@ -250,14 +250,15 @@
         <label>Supply Chain Start Date <span class="text-red-500">*</span>
           <span class="text-sm font-normal text-gray-500 block">(Auto-populated from Contract form)</span>
         </label>
-        <input type="date" id="startDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
+        <input type="date" id="startDate" class="w-full p-2 border rounded bg-white" required onchange="validateDateRange(); calculateRouteRuns();">
       </div>
 
       <div>
         <label>Supply Chain End Date <span class="text-red-500">*</span>
           <span class="text-sm font-normal text-gray-500 block">(Auto-populated from Contract form)</span>
         </label>
-        <input type="date" id="endDate" class="w-full p-2 border rounded bg-white" required onchange="calculateRouteRuns()">
+        <input type="date" id="endDate" class="w-full p-2 border rounded bg-white" required onchange="validateDateRange(); calculateRouteRuns();">
+        <p id="dateRangeError" class="text-xs text-red-600 mt-1 hidden">⚠️ End date must be on or after the start date.</p>
       </div>
 
       <!-- Day(s) of the week for pick up -->
@@ -305,12 +306,21 @@
       <!-- Dates to remove from schedule -->
       <div>
         <label>Dates to Remove from the Schedule
-          <span class="text-sm font-normal text-gray-500 block">(Any pick-up dates that land on a holiday or need to be adjusted)</span>
+          <span class="text-sm font-normal text-gray-500 block">(Select from scheduled pick-up dates only — e.g., holidays or blackout dates)</span>
         </label>
-        <div class="flex gap-2">
-          <input type="date" id="excludeDateInput" class="flex-1 p-2 border rounded bg-white">
+
+        <!-- Prominent warning note per Prof. Forbes (April 16 meeting) -->
+        <div class="mt-2 p-3 rounded-md border-l-4 border-red-500 bg-red-50 text-red-800 text-sm font-semibold">
+          ⚠️ <span class="font-bold">Important:</span> Removing a date cancels the <u>entire route run</u> for that date — <u>all vendor stops</u>. This is NOT for skipping a single vendor on a given day.
+        </div>
+
+        <div class="flex gap-2 mt-2">
+          <select id="excludeDateInput" class="flex-1 p-2 border rounded bg-white">
+            <option value="">- Select a scheduled pick-up date -</option>
+          </select>
           <button type="button" onclick="addExcludedDate()" class="theme-bg mode-new text-white px-4 py-2 rounded font-semibold text-sm">+ Add</button>
         </div>
+        <p id="noScheduledDatesMsg" class="text-xs text-gray-500 mt-1">Fill in Start Date, End Date, Days of Week, and Periodicity to see selectable dates.</p>
         <div id="excludedDatesContainer" class="mt-2"></div>
       </div>
 
@@ -349,7 +359,32 @@
 
       <div>
         <label>Max Transportation Size Capacity</label>
-        <input type="text" id="maxCapacity" class="w-full p-2 border rounded bg-white" placeholder="e.g., 2,500 lbs or 40 boxes">
+        <div class="flex gap-2">
+          <input type="number" step="0.01" id="maxCapacity" class="flex-1 p-2 border rounded bg-white" placeholder="e.g., 2500">
+          <select id="maxCapacityUnit" class="w-32 p-2 border rounded bg-white" onchange="toggleCapacityBoxDims()">
+            <option value="">- Unit -</option>
+            <option value="lbs">Pounds (lbs)</option>
+            <option value="boxes">Boxes</option>
+          </select>
+        </div>
+        <!-- Conditional box-dimension sub-fields when "boxes" selected (Prof. Forbes: length × width × height) -->
+        <div id="maxCapacityBoxDims" class="hidden mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+          <p class="text-xs font-semibold text-blue-900 mb-2">📦 Box dimensions (inches) — required so we know the box size</p>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-xs font-semibold">Length</label>
+              <input type="number" step="0.1" id="maxCapBoxL" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="L">
+            </div>
+            <div>
+              <label class="text-xs font-semibold">Width</label>
+              <input type="number" step="0.1" id="maxCapBoxW" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="W">
+            </div>
+            <div>
+              <label class="text-xs font-semibold">Height</label>
+              <input type="number" step="0.1" id="maxCapBoxH" class="w-full p-1.5 border rounded bg-white text-sm" placeholder="H">
+            </div>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -564,6 +599,7 @@
 
       document.getElementById('totalRouteRuns').value = count;
       recalcAllGrandTotals();
+      refreshExcludeDateOptions();
     }
 
     // ─── Excluded Dates ───
@@ -575,12 +611,14 @@
       renderExcludedDates();
       input.value = '';
       calculateRouteRuns();
+      refreshExcludeDateOptions();
     }
 
     function removeExcludedDate(d) {
       excludedDates = excludedDates.filter(x => x !== d);
       renderExcludedDates();
       calculateRouteRuns();
+      refreshExcludeDateOptions();
     }
 
     function renderExcludedDates() {
@@ -630,22 +668,25 @@
 
       card.innerHTML = `
         <div class="flex items-center justify-between mb-3">
-          <span class="font-bold text-gray-700">Vendor Stop <span class="stop-number">${container.children.length + 1}</span></span>
-          <button type="button" onclick="removeVendorCard(${idx})" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <button type="button" onclick="toggleVendorCollapse(${idx})" id="collapseBtn-${idx}"
+                    class="text-gray-500 hover:text-gray-700 font-bold text-sm flex-shrink-0">▼</button>
+            <span class="font-bold text-gray-700 flex-shrink-0">Vendor Stop <span class="stop-number">${container.children.length + 1}</span></span>
+            <span id="vSummary-${idx}" class="text-xs text-gray-600 truncate"></span>
+          </div>
+          <button type="button" onclick="removeVendorCard(${idx})" class="text-red-500 hover:text-red-700 font-bold text-lg flex-shrink-0">✕</button>
         </div>
-        <div class="space-y-3">
+        <div id="vendorBody-${idx}" class="space-y-3">
 
           <!-- Vendor Name (filtered from Contract form vendors only) -->
           <div>
             <label class="text-sm">Vendor Name <span class="text-red-500">*</span>
-              <span class="text-xs font-normal text-gray-500 block">(Only vendors listed in Contract form appear here)</span>
+              <span class="text-xs font-normal text-gray-500 block">(Only <b>Farmer</b> and <b>Value-Added Producer</b> vendors from the Contract form appear here. Educators and other vendor types are excluded.)</span>
             </label>
             <select id="vName-${idx}" class="w-full p-2 border rounded bg-white text-sm" onchange="onVendorSelected(${idx})">
               <option value="">- Select Vendor -</option>
-              <!-- In production: populated from Contract form vendors -->
-              <option value="SAMPLE-VENDOR-1|V-1001|123 Main St, Portland, OR">[Sample] Green Acres Farm</option>
-              <option value="SAMPLE-VENDOR-2|V-1002|456 Oak Ave, Portland, OR">[Sample] Sunrise Produce</option>
-              <option value="SAMPLE-VENDOR-3|V-1003|789 Elm Rd, Portland, OR">[Sample] Heritage Growers</option>
+              <!-- In production: populated from Contract form, filtered to allowed types only -->
+              ${getAllowedVendorOptions()}
             </select>
           </div>
 
@@ -685,6 +726,10 @@
               <button type="button" onclick="addCropRow(${idx})" class="bg-green-100 hover:bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full font-semibold">+ Add Item</button>
             </div>
             <p class="text-xs text-gray-500 mb-2">Only produce items listed in this vendor's Registration form appear below.</p>
+
+            <!-- Running list of items added (visible summary per Prof. Forbes's feedback) -->
+            <div id="cropSummary-${idx}" class="mb-2 text-xs text-gray-700"></div>
+
             <div id="cropContainer-${idx}"></div>
           </div>
 
@@ -698,6 +743,13 @@
         populateOrderDropdowns();
         updateVendorOrderControls(card);
       }
+
+      // Refresh the visible vendor summary whenever top-level vendor fields change
+      card.querySelectorAll('#vendorBody-' + idx + ' > div > input, #vendorBody-' + idx + ' > div > select').forEach(el => {
+        el.addEventListener('input', () => refreshVendorSummary(idx));
+        el.addEventListener('change', () => refreshVendorSummary(idx));
+      });
+      refreshVendorSummary(idx);
     }
 
     function removeVendorCard(idx) {
@@ -712,9 +764,20 @@
       const sel = document.getElementById(`vName-${idx}`);
       const val = sel.value;
       if (!val) return;
-      const [name, vendorId, address] = val.split('|');
+      const [name, vendorId, address, type] = val.split('|');
       document.getElementById(`vId-${idx}`).value = vendorId;
       document.getElementById(`vAddr-${idx}`).value = address;
+
+      // Defense-in-depth: reject disallowed vendor types even if they slip through
+      if (type && !ALLOWED_VENDOR_TYPES.includes(type)) {
+        alert(`Vendor type "${type}" is not allowed on supply chain routes. Only Farmers and Value-Added Producers can be added.`);
+        sel.value = '';
+        document.getElementById(`vId-${idx}`).value = '';
+        document.getElementById(`vAddr-${idx}`).value = '';
+        return;
+      }
+
+      refreshVendorSummary(idx);
       // In production: also reload crop category/items dropdowns scoped to this vendor's Registration
     }
 
@@ -755,7 +818,7 @@
       row.innerHTML = `
         <div class="flex justify-between items-center mb-2">
           <span class="text-xs font-bold theme-text mode-${currentMode}">Item #${num}</span>
-          <button type="button" onclick="this.closest('.crop-card').remove(); recalcAllGrandTotals();" class="text-red-400 hover:text-red-600 text-sm">✕</button>
+          <button type="button" onclick="const c=this.closest('.crop-card'); const v=c.closest('.vendor-card').dataset.vendorIdx; c.remove(); recalcAllGrandTotals(); refreshVendorSummary(v);" class="text-red-400 hover:text-red-600 text-sm">✕</button>
         </div>
         <div class="space-y-2">
 
@@ -781,32 +844,55 @@
 
           <!-- Total Quantity across program period -->
           <div>
-            <label class="text-xs font-semibold">Total Quantity of Item (in pounds) across the program period</label>
-            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-program" placeholder="0">
-          </div>
-
-          <div>
-            <label class="text-xs font-normal text-gray-500">Additional info (optional, e.g., number of boxes)</label>
-            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm crop-qty-program-note" placeholder="e.g., 25 boxes total">
+            <label class="text-xs font-semibold">Total Quantity of Item across the program period <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <input type="number" step="0.01" class="flex-1 p-1.5 border rounded bg-white text-sm crop-qty-program" placeholder="0" required>
+              <select class="w-28 p-1.5 border rounded bg-white text-sm crop-qty-program-unit" onchange="toggleCropBoxDims(this)" required>
+                <option value="">- Unit -</option>
+                <option value="lbs">Pounds</option>
+                <option value="boxes">Boxes</option>
+              </select>
+            </div>
           </div>
 
           <!-- Total Quantity in a Single Pick-up -->
           <div>
-            <label class="text-xs font-semibold">Total Quantity of Item in a Single Pick-up (in pounds)</label>
-            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load" placeholder="0" oninput="recalcGrandTotal(this)">
+            <label class="text-xs font-semibold">Total Quantity of Item in a Single Pick-up <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <input type="number" step="0.01" class="flex-1 p-1.5 border rounded bg-white text-sm crop-per-load" placeholder="0" oninput="recalcGrandTotal(this)" required>
+              <select class="w-28 p-1.5 border rounded bg-white text-sm crop-per-load-unit" onchange="toggleCropBoxDims(this)" required>
+                <option value="">- Unit -</option>
+                <option value="lbs">Pounds</option>
+                <option value="boxes">Boxes</option>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label class="text-xs font-normal text-gray-500">Additional info (optional, e.g., number of boxes)</label>
-            <input type="text" class="w-full p-1.5 border rounded bg-white text-sm crop-per-load-note" placeholder="e.g., 3 boxes per pick-up">
+          <!-- Conditional: Box dimensions (shown when either unit dropdown = "boxes") -->
+          <div class="crop-box-dims hidden p-3 bg-blue-50 border border-blue-200 rounded">
+            <p class="text-xs font-semibold text-blue-900 mb-2">📦 Box dimensions (inches) <span class="text-red-500">*</span></p>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="text-xs font-semibold">Length</label>
+                <input type="number" step="0.1" class="w-full p-1.5 border rounded bg-white text-sm crop-box-l" placeholder="L">
+              </div>
+              <div>
+                <label class="text-xs font-semibold">Width</label>
+                <input type="number" step="0.1" class="w-full p-1.5 border rounded bg-white text-sm crop-box-w" placeholder="W">
+              </div>
+              <div>
+                <label class="text-xs font-semibold">Height</label>
+                <input type="number" step="0.1" class="w-full p-1.5 border rounded bg-white text-sm crop-box-h" placeholder="H">
+              </div>
+            </div>
           </div>
 
           <!-- Wholesale Unit Price -->
           <div>
-            <label class="text-xs font-semibold">Wholesale Unit Price ($)
+            <label class="text-xs font-semibold">Wholesale Unit Price ($) <span class="text-red-500">*</span>
               <span class="text-xs font-normal text-gray-500 block">(Auto-populates if already preset in Upcoming Market form)</span>
             </label>
-            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-unit-price" placeholder="0.00" oninput="recalcGrandTotal(this)">
+            <input type="number" step="0.01" class="w-full p-1.5 border rounded bg-white text-sm crop-unit-price" placeholder="0.00" oninput="recalcGrandTotal(this)" required>
           </div>
 
           <!-- Grand Total per Item -->
@@ -820,6 +906,13 @@
         </div>
       `;
       container.appendChild(row);
+
+      // Refresh the vendor's visible summary whenever item fields change
+      row.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('input', () => refreshVendorSummary(vendorIdx));
+        el.addEventListener('change', () => refreshVendorSummary(vendorIdx));
+      });
+      refreshVendorSummary(vendorIdx);
     }
 
     function populateItems(sel) {
@@ -851,6 +944,158 @@
         const gt = card.querySelector('.crop-grand-total');
         if (gt) gt.value = `$${(up * pl * tr).toFixed(2)}`;
       });
+    }
+
+    // ─── NEW (Prof. Forbes April 16 feedback) ─────────────────────────────
+
+    // #1 — End date must not be before start date
+    function validateDateRange() {
+      const s = document.getElementById('startDate').value;
+      const e = document.getElementById('endDate').value;
+      const endInput = document.getElementById('endDate');
+      const errMsg = document.getElementById('dateRangeError');
+      if (s) endInput.min = s;
+      if (s && e && e < s) {
+        errMsg.classList.remove('hidden');
+        endInput.setCustomValidity('End date must be on or after the start date.');
+        endInput.value = '';
+      } else {
+        errMsg.classList.add('hidden');
+        endInput.setCustomValidity('');
+      }
+    }
+
+    // #2 — Populate the "Dates to Remove" dropdown with actual scheduled pickup dates
+    // (respects days-of-week + periodicity, excludes already-excluded dates)
+    function getScheduledPickupDates() {
+      const s = document.getElementById('startDate').value;
+      const e = document.getElementById('endDate').value;
+      const period = document.getElementById('periodicity').value;
+      if (!s || !e || !period || selectedDays.size === 0) return [];
+
+      const sd = new Date(s + 'T00:00:00');
+      const ed = new Date(e + 'T00:00:00');
+      if (ed < sd) return [];
+
+      const increment = period === 'Weekly' ? 7 : period === 'Bi-weekly' ? 14 : 28;
+      const dates = [];
+      let current = new Date(sd);
+
+      while (current <= ed) {
+        for (let i = 0; i < 7 && current <= ed; i++) {
+          if (selectedDays.has(String(current.getDay()))) {
+            dates.push(current.toLocaleDateString('en-CA'));
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        if (increment > 7) current.setDate(current.getDate() + (increment - 7));
+      }
+      return dates;
+    }
+
+    function refreshExcludeDateOptions() {
+      const sel = document.getElementById('excludeDateInput');
+      const msg = document.getElementById('noScheduledDatesMsg');
+      const scheduled = getScheduledPickupDates().filter(d => !excludedDates.includes(d));
+
+      sel.innerHTML = '<option value="">- Select a scheduled pick-up date -</option>';
+      if (scheduled.length === 0) {
+        msg.classList.remove('hidden');
+      } else {
+        msg.classList.add('hidden');
+        scheduled.forEach(d => {
+          const dt = new Date(d + 'T00:00:00');
+          const label = dt.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          sel.innerHTML += `<option value="${d}">${label}</option>`;
+        });
+      }
+    }
+
+    // #3 — Vendor type filter: only Farmers and Value-Added Producers allowed
+    // In production, the Contract form API will already filter by type. These samples carry a type tag.
+    const ALLOWED_VENDOR_TYPES = ['Farmer', 'Value-Added Producer'];
+    const SAMPLE_CONTRACT_VENDORS = [
+      { name: 'Green Acres Farm',   id: 'V-1001', addr: '123 Main St, Portland, OR',   type: 'Farmer' },
+      { name: 'Sunrise Produce',    id: 'V-1002', addr: '456 Oak Ave, Portland, OR',   type: 'Farmer' },
+      { name: 'Heritage Growers',   id: 'V-1003', addr: '789 Elm Rd, Portland, OR',    type: 'Value-Added Producer' },
+      { name: 'Portland Ed Center', id: 'V-1004', addr: '22 Learning Ln, Portland, OR', type: 'Educator' } // excluded
+    ];
+
+    function getAllowedVendorOptions() {
+      return SAMPLE_CONTRACT_VENDORS
+        .filter(v => ALLOWED_VENDOR_TYPES.includes(v.type))
+        .map(v => `<option value="${v.name}|${v.id}|${v.addr}|${v.type}">[Sample] ${v.name} (${v.type})</option>`)
+        .join('');
+    }
+
+    // #4 & #5 — Visible item list + collapse/expand vendor cards
+    function toggleVendorCollapse(idx) {
+      const body = document.getElementById('vendorBody-' + idx);
+      const btn  = document.getElementById('collapseBtn-' + idx);
+      if (!body) return;
+      const isHidden = body.classList.toggle('hidden');
+      btn.textContent = isHidden ? '▶' : '▼';
+      // Remember the user's choice so auto-collapse doesn't override them
+      if (isHidden) delete body.dataset.userExpanded;
+      else body.dataset.userExpanded = '1';
+    }
+
+    function isVendorComplete(idx) {
+      const name = document.getElementById('vName-' + idx)?.value;
+      const addr = document.getElementById('vAddr-' + idx)?.value?.trim();
+      const items = document.querySelectorAll('#cropContainer-' + idx + ' .crop-card').length;
+      return name && addr && items >= 1;
+    }
+
+    function refreshVendorSummary(idx) {
+      const summaryEl = document.getElementById('vSummary-' + idx);
+      const listEl    = document.getElementById('cropSummary-' + idx);
+      const nameSel   = document.getElementById('vName-' + idx);
+      if (!summaryEl || !listEl) return;
+
+      const vendorName = nameSel?.selectedOptions[0]?.text || '(vendor not selected)';
+      const items = document.querySelectorAll('#cropContainer-' + idx + ' .crop-card');
+
+      // Short header summary
+      summaryEl.textContent = `— ${vendorName} · ${items.length} item(s)`;
+
+      // Detailed running list
+      if (items.length === 0) {
+        listEl.innerHTML = '<em class="text-gray-400">No items added yet.</em>';
+      } else {
+        let rows = '<div class="p-2 bg-white border border-gray-200 rounded"><div class="font-semibold text-gray-700 mb-1">Items added:</div><ol class="list-decimal pl-5 space-y-0.5">';
+        items.forEach(card => {
+          const item = card.querySelector('.crop-item')?.value || '(not selected)';
+          const qty  = card.querySelector('.crop-per-load')?.value || '?';
+          const unit = card.querySelector('.crop-per-load-unit')?.value || '';
+          rows += `<li>${item} — ${qty} ${unit} per pick-up</li>`;
+        });
+        rows += '</ol></div>';
+        listEl.innerHTML = rows;
+      }
+
+      // Auto-collapse when vendor is complete (per Prof. Forbes)
+      if (isVendorComplete(idx)) {
+        const body = document.getElementById('vendorBody-' + idx);
+        const btn  = document.getElementById('collapseBtn-' + idx);
+        if (body && !body.classList.contains('hidden') && !body.dataset.userExpanded) {
+          body.classList.add('hidden');
+          if (btn) btn.textContent = '▶';
+        }
+      }
+    }
+
+    // #7 & #8 — Show box dimensions when "boxes" unit is selected
+    function toggleCapacityBoxDims() {
+      const unit = document.getElementById('maxCapacityUnit').value;
+      document.getElementById('maxCapacityBoxDims').classList.toggle('hidden', unit !== 'boxes');
+    }
+
+    function toggleCropBoxDims(selectEl) {
+      const card = selectEl.closest('.crop-card');
+      const anyBoxes = [...card.querySelectorAll('.crop-qty-program-unit, .crop-per-load-unit')]
+                        .some(s => s.value === 'boxes');
+      card.querySelector('.crop-box-dims').classList.toggle('hidden', !anyBoxes);
     }
 
     // ─── Submit ───
